@@ -1,170 +1,101 @@
 import datetime as dt
+import os
 
-import time
-import feedparser
-from dateutil.parser import parse as dateTimeParse
+from alive_progress import alive_it, alive_bar
+from gcsa.attachment import Attachment as GCalAttachment
+from gcsa.calendar import Calendar
+from gcsa.event import Event as GCalEvent
+from gcsa.google_calendar import GoogleCalendar
+from google.oauth2.service_account import Credentials
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
 
-from GoogleCalendarService import getGoogleCalendarService
-from data.Event import Event
-from data.VenueInfo import VenueInfo
+from scrapers.broadberryScraper import get_broadberry_event_urls
+from scrapers.etixScraper import etix_event_details_scraper
+from scrapers.theNationalScraper import get_national_event_urls, the_national_details_scraper
 
-broadBerryURL = "https://thebroadberry.com/events/?view=month"
-theNationalRSSFeedURL = "https://www.thenationalva.com/events/rss"
-theNationalVenueInfo = VenueInfo("The National", "708 E. Broad Street", "Richmond", "Virginia", 23219)
-
-
-def get_broadberry_event_urls(driver):
-    driver.get(broadBerryURL)
-    time.sleep(5)
-    events = driver.find_elements(By.LINK_TEXT, "BUY TICKETS")
-    event_urls = [*map(lambda event: event.get_attribute("href"), events)]
-    return event_urls
-
-
-def get_national_event_urls():
-    event_feed = feedparser.parse(theNationalRSSFeedURL)
-    return [entry.link for entry in event_feed.entries]
-
-
-def the_national_details_scraper(driver, event_url):
-    event_detail_container = driver.find_element(By.CLASS_NAME, "event_detail")
-    event_date = dateTimeParse(event_detail_container.find_element(By.CLASS_NAME, "left_column").find_element(By.CLASS_NAME, "date").text.replace("DATE", "")).date()
-    event_time = dateTimeParse(driver.find_element(By.CLASS_NAME, "left_column").find_element(By.CLASS_NAME, "text-large").text.replace("TIME", "")).time()
-    event_date_time = dt.datetime.combine(event_date, event_time)
-    event_door_open_time = dateTimeParse(
-        event_detail_container.find_element(By.CLASS_NAME, "doors").find_elements(By.TAG_NAME, "label")[1].text).time()  # The first one will just have the text "Doors"
-    event_name = event_detail_container.find_element(By.CLASS_NAME, "page_header_left").find_element(By.TAG_NAME, "h1").text
-    event_image_url = event_detail_container.find_element(By.CLASS_NAME, "event_image").find_element(By.TAG_NAME, "img").get_attribute("src")
-    event_description = ""
-    try:
-        event_description = event_detail_container.find_element(By.CLASS_NAME, "bio").find_element(By.CLASS_NAME, "collapse-wrapper").text
-    except:
-        print(f"no bio available for this event {event_name}, {event_url}")
-    event = Event(theNationalVenueInfo, event_date_time, event_door_open_time, event_name, event_image_url, event_description, event_url)
-    print(event)
-    return event
-
+from apiclient import discovery
 
 def get_event_details(driver, event_url):
     driver.get(event_url)
+    scraped_event = None
     if "etix" in event_url:
-        return etix_event_details_scraper(driver, event_url)
-    if "thenationalva" in event_url:
-        return the_national_details_scraper(driver, event_url)
+        scraped_event = etix_event_details_scraper(driver, event_url)
+    elif "thenationalva" in event_url:
+        scraped_event = the_national_details_scraper(driver, event_url)
     else:
         print(f"ticketProvider not supported yet {event_url}")
+    return scraped_event
 
 
-def etix_event_details_scraper(driver, event_url):
-    try:
-        performance_info = driver.find_element(By.CLASS_NAME, "performance-info")
-        event_image_url = performance_info.find_element(By.CLASS_NAME, "performance-image").find_element(By.TAG_NAME, "img").get_attribute("src")
-        location_info_element = performance_info.find_element(By.CLASS_NAME, "location")
-        venue_name = location_info_element.find_element(By.XPATH, "//span[@itemprop='name']").text
-        address_info_element = performance_info.find_element(By.XPATH, "//span[@itemprop='address']")
-        street_address = address_info_element.find_element(By.XPATH, "//meta[@itemprop='streetAddress']").get_attribute("content")
-        address_locality = address_info_element.find_element(By.XPATH, "//meta[@itemprop='addressLocality']").get_attribute("content")
-        address_region = address_info_element.find_element(By.XPATH, "//meta[@itemprop='addressRegion']").get_attribute("content")
-        postal_code = address_info_element.find_element(By.XPATH, "//meta[@itemprop='postalCode']").get_attribute("content")
-        event_name = performance_info.find_element(By.XPATH, "//h1[@itemprop='name']").text
-        event_date_time = dateTimeParse(performance_info.find_element(By.XPATH, "//meta[@itemprop='startDate']").get_attribute('content'))
-        event_door_open_time = dateTimeParse(performance_info.find_element(By.CLASS_NAME, "time").text.split("\n")[-1].replace("Doors Open:", "").strip()).time()
-        event_description = performance_info.find_element(By.XPATH, "//div[@itemprop='description']").text
-        return Event(VenueInfo(venue_name, street_address, address_locality, address_region, postal_code), event_date_time, event_door_open_time, event_name, event_image_url, event_description,
-                     event_url)
-    except:
-        print(f"Problem extracting for {event_url}")
+def addCalendarEvents(calendarService, calendar, events):
+    with alive_bar(total=len(events), dual_line=True, title='Creating Google Events', ctrl_c=False) as bar:
+        for event in events:
+            attachment = GCalAttachment(file_url=event.image_url)
+            calendar_event = calendarService.add_event(calendar_id=calendar.id, event=GCalEvent(
+                summary=event.event_name,
+                location=event.venue_info.full_address,
+                start=event.event_datetime,
+                end=(event.event_datetime + dt.timedelta(hours=3)),
+                description=event.full_description,
+                guests_can_see_other_guests=False,
+                minutes_before_popup_reminder=15,
+                attachments=attachment,
+                visibility="public",
+                other={
+                    "source": event.url
+                }
+            ))
+            bar.text = f'-> {calendar_event} Created'
+            bar()
 
+def get_google_credentials():
+    SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
+    secret_file = os.path.join(os.getcwd(), 'service.json')
+    # if os.path.exists('token.json'):
+    #     creds = Credentials.from_authorized_user_file('token.json', SCOPES)
 
-def getMusicCalendar(calendarService):
-    calendar = {
-        'summary': 'RVA Music Calendar',
-        'timeZone': 'America/New_York'
-    }
-    created_calendar = calendarService.calendars().insert(body=calendar).execute()
-    calendarService.calendarList().insert(body={
-        "id": created_calendar['id'],
-    }, colorRgbFormat=False)
-    # calendarList = calendarService.calendarList().list()
-    # print(calendarList.__dict__)
-    # print(calendarList.items)
-    return created_calendar
+    spreadsheet_id = '1EC_FIA2ZpydWxBsuUaQIUUpcYk3mm6VYWMs4Q4cn26c'
+    range_name = 'Sheet1!A1:D2'
 
-
-def addCalendarEvent(event, calendar, service):
-    googleCalendarEvent = {
-        "summary": event.eventName,  # Title of the event.
-        "start": {  # The (inclusive) start time of the event. For a recurring event, this is the start time of the first instance.
-            # "date": "A String",  # The date, in the format "yyyy-mm-dd", if this is an all-day event.
-            "dateTime": event.eventDateTime.isoformat(),  # The time, as a combined date-time value (formatted according to RFC3339). A time zone offset is required unless a time zone is explicitly specified in timeZone.
-        },
-        "source": {
-            "url": event.eventUrl
-        },
-        "location": event.venueInfo.streetAddress,
-        "description": event.description,
-        "end": {  # The (exclusive) end time of the event. For a recurring event, this is the end time of the first instance.
-            "dateTime": (event.eventDateTime + dt.timedelta(hours=3)).isoformat(),  # The time, as a combined date-time value (formatted according to RFC3339). A time zone offset is required unless a time zone is explicitly specified in timeZone.
-        },
-        "privateCopy": True,
-        # "colorId": "A String",  # The color of the event. This is an ID referring to an entry in the event section of the colors definition (see the  colors endpoint). Optional.
-        # # "reminders": { # Information about the event's reminders for the authenticated user.
-        # #   "overrides": [ # If the event doesn't use the default reminders, this lists the reminders specific to the event, or, if not set, indicates that no reminders are set for this event. The maximum number of override reminders is 5.
-        # #     {
-        # #       "minutes": 42, # Number of minutes before the start of the event when the reminder should trigger. Valid values are between 0 and 40320 (4 weeks in minutes).
-        # #           # Required when adding a reminder.
-        # #       "method": "A String", # The method used by this reminder. Possible values are:
-        # #           # - "email" - Reminders are sent via email.
-        # #           # - "popup" - Reminders are sent via a UI popup.
-        # #           # Required when adding a reminder.
-        # #     },
-        # #   ],
-        # #   "useDefault": True or False, # Whether the default reminders of the calendar apply to the event.
-        # # },
-        "guestsCanSeeOtherGuests": False,  # Whether attendees other than the organizer can see who the event's attendees are. Optional. The default is True.
-        "guestsCanInviteOthers": True,  # Whether attendees other than the organizer can invite others to the event. Optional. The default is True.
-    }
-    print(googleCalendarEvent)
-    response = service.events().insert(calendarId=calendar['id'], body=googleCalendarEvent)
-    print(response.body)
-    calendarEvents = service.events().list(calendarId=calendar['id'])
-    print(calendarEvents)
-
-def addCalendarEvents(events, calendar, service):
-    for event in events:
-        addCalendarEvent(event, calendar, service)
+    credentials = Credentials.from_service_account_file(secret_file, scopes=SCOPES)
+    return credentials
+    # service = discovery.build('sheets', 'v4', credentials=credentials)
+    # return service
 
 
 def main():
     options = Options()
     # options.add_experimental_option("detach", True)
+    options.add_argument("--window-size=1920,1080")
+    options.add_argument("--headless")
+    # options.add_argument("--silent")
+    options.add_argument("--disable-infobars")
+    options.add_argument("--start-maximized")
+    # options.add_argument("--disable-plugins-discovery")
     driver = webdriver.Chrome(options=options)
-    calendarService = getGoogleCalendarService()
-    musicCalendar = getMusicCalendar(calendarService)
+    # creds = get_google_credentials()
+    # print(creds)
 
-    broad_berry_event_urls = []  # get_broadberry_event_urls(driver)
-    the_national_event_urls = get_national_event_urls()[:3]
+    calendar_service = GoogleCalendar('rvamusiccalendar@gmail.com', credentials_path="./credentials.json")
+    calendar = Calendar(
+        'RVA Music Calendar',
+        description='Calendar for all music events in RVA'
+    )
+    calendar = calendar_service.add_calendar(calendar)
+    print(calendar)
+    broad_berry_event_urls = get_broadberry_event_urls(driver)
+    the_national_event_urls = get_national_event_urls()
     event_urls = broad_berry_event_urls + the_national_event_urls
-    events = [*map(lambda event_url: get_event_details(driver, event_url), event_urls)]
-    print([event for event in events])
 
-    print(musicCalendar['id'])
+    events = [*map(lambda event_url: get_event_details(driver, event_url), alive_it(event_urls, title="Scraping events"))]
+    # print([event for event in events])
+    print(f"{len(events)} events found")
+    events = [event for event in events if event is not None]  # If we get errors in scraping we return None, this strips those out
+    print(f"{len(events)} events were valid")
+    addCalendarEvents(calendar_service, calendar, events)
+    print(f"All of the events have been created")
 
-    calendarService.calendars().delete(calendarId=musicCalendar['id'])
-    addCalendarEvents(events, musicCalendar, calendarService)
-
-
-# print(eventURLs)
-
-# details = getBroadBerryEventDetails(driver, 'https://www.etix.com/ticket/p/7898189/girl-god-wwill-sennett-seated-show-richmond-richmond-music-hall?partner_id=240')
-# print(details)
-# broadBerryEventURLs = broadBerryEventURLs[10:]
-
-# events = [*map(lambda eventUrl: getBroadBerryEventDetails(driver, eventUrl), broadBerryEventURLs)]
-# print([event for event in events])
 
 if __name__ == '__main__':
     main()
