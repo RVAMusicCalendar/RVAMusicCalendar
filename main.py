@@ -1,3 +1,4 @@
+import datetime
 import datetime as dt
 import os
 
@@ -28,11 +29,11 @@ def get_event_details(driver, event_url):
     return scraped_event
 
 
-def addCalendarEvents(calendarService, events):
+def add_calendar_events(calendar_service, events):
     with alive_bar(total=len(events), dual_line=True, title='Creating Google Events', ctrl_c=False) as bar:
         for event in events:
             attachment = GCalAttachment(file_url=event.image_url)
-            calendar_event = calendarService.add_event(event=GCalEvent(
+            calendar_event = calendar_service.add_event(event=GCalEvent(
                 summary=event.event_name,
                 location=event.venue_info.full_address,
                 start=event.event_datetime,
@@ -58,13 +59,16 @@ def get_google_credentials():
 
 
 def clear_calendar(calendar_service):
-    events = calendar_service.get_events()
-
-    with alive_bar(dual_line=True, title='Deleting Old Google Events') as bar:
+    events = calendar_service.get_events(time_min=datetime.datetime.now())
+    with alive_bar(dual_line=True, title='Trying to delete upcoming Google Events') as bar:
         for event in events:
-            bar.text = f'-> Deleting {event.id} {event.summary}'
-            calendar_service.delete_event(event=event)
-            bar()
+            if event.creator.email == "calendar-bot@rva-music-calendar.iam.gserviceaccount.com":
+                bar.text = f'-> Deleting {event.id} {event.summary}'
+                calendar_service.delete_event(event=event)
+                bar()
+            else:
+                bar.text = f'-> Not Deleting manually created event {event.id} {event.summary} created by {event.creator}'
+                bar()
 
 
 def get_selenium_driver(headless=True):
@@ -86,23 +90,19 @@ def main():
     calendar_service = GoogleCalendar(credentials=creds, default_calendar=rva_music_calendar_id)
 
     clear_calendar(calendar_service)
-
     broad_berry_event_urls = get_broadberry_event_urls(driver)
     the_national_event_urls = get_national_event_urls()
     event_urls = broad_berry_event_urls + the_national_event_urls
 
     events = [*map(lambda event_url: get_event_details(driver, event_url), alive_it(event_urls, title="Scraping events"))]
     print(f"{len(events)} events found")
-
     events = [event for event in events if event is not None]  # If we get errors in scraping we return None, this strips those out
     print(f"{len(events)} events were valid")
+    events = [event for event in events if event.venue_info.city == "Richmond"]  # Filter out events that aren't in richmond
+    print(f"{len(events)} events were valid AND in Richmond")
 
-    # for event in events:
-    #     print(event.venue_info.city)
-    # events = [event for event in events if event.venue_info.city.strip() != "Richmond"]  # Filter out events that aren't in richmond
+    add_calendar_events(calendar_service, events)
 
-    # print(f"{len(events)} events were valid AND in Richmond")
-    addCalendarEvents(calendar_service, events)
     print(f"All of the events have been created")
 
 

@@ -23,9 +23,9 @@ class Event:
     @property
     def full_description(self):
         return f'''
-        <b>Doors open at {self.door_time.strftime("%I:%M %p")}</b> 
-        <br>
-        {self.description}
-        <br>
-        {self.url}
-        '''
+<b>Doors open at {self.door_time.strftime("%I:%M %p")}</b> 
+<br>
+{self.description}
+<br>
+{self.url}
+'''
