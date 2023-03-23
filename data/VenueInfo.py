@@ -1,4 +1,5 @@
 class VenueInfo:
+
     def __init__(self, venue_name: str, street_address: str, city: str, state: str, postal_code: int):
         self.state = state
         self.venue_name = venue_name

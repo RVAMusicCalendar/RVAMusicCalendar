@@ -5,7 +5,8 @@ from datetime import datetime, time
 
 
 class Event:
-    def __init__(self, venue_info: VenueInfo, event_datetime: datetime, door_time: time, event_name: str, image_url: str, description: str, event_url: str):
+    def __init__(self, venue_info: VenueInfo, event_datetime: datetime, door_time: time, event_name: str, image_url: str, description: str, event_url: str, source_url: str = "", price: float = None,
+                 color_id: str = None):
         self.description = description
         self.door_time = door_time
         self.image_url = image_url
@@ -13,6 +14,9 @@ class Event:
         self.event_datetime = event_datetime
         self.venue_info = venue_info
         self.url = event_url
+        self.source_url = source_url
+        self.price = price
+        self.color_id = color_id
 
     def __str__(self):
         return f"{self.event_name}, on {self.event_datetime}, with the doors opening {self.door_time} at {self.venue_info.venue_name}"
@@ -27,5 +31,5 @@ class Event:
 <br>
 {self.description}
 <br>
-{self.url}
+<a href="{self.url}">Buy Tickets Here</a>
 '''

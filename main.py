@@ -2,28 +2,31 @@ import datetime
 import datetime as dt
 import os
 
-from alive_progress import alive_it, alive_bar
+from alive_progress import alive_bar
 from gcsa.attachment import Attachment as GCalAttachment
 from gcsa.event import Event as GCalEvent
 from gcsa.google_calendar import GoogleCalendar
 from google.oauth2.service_account import Credentials
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 
+from data.Event import Event
 from scrapers.broadberryScraper import get_broadberry_event_urls
 from scrapers.etixScraper import etix_event_details_scraper
+from scrapers.theCamelScraper import get_camel_event_urls, the_camel_details_scraper
 from scrapers.theNationalScraper import get_national_event_urls, the_national_details_scraper
+from seleniumDriver import get_selenium_driver
 
 rva_music_calendar_id = "810rm4o2829cdhurresns7a4cc@group.calendar.google.com"
 
 
 def get_event_details(driver, event_url):
     driver.get(event_url)
-    scraped_event = None
+    scraped_event: Event | None = None
     if "etix" in event_url:
         scraped_event = etix_event_details_scraper(driver, event_url)
     elif "thenationalva" in event_url:
         scraped_event = the_national_details_scraper(driver, event_url)
+    elif "thecamel" in event_url:
+        scraped_event = the_camel_details_scraper(driver, event_url)
     else:
         print(f"ticketProvider not supported yet {event_url}")
     return scraped_event
@@ -41,10 +44,11 @@ def add_calendar_events(calendar_service, events):
                 description=event.full_description,
                 guests_can_see_other_guests=False,
                 minutes_before_popup_reminder=15,
+                color_id=event.color_id,
                 attachments=attachment,
-                visibility="public",
+                # visibility="public",
                 other={
-                    "source": event.url
+                    "source": event.source_url if event.source_url != "" else event.url
                 }
             ))
             bar.text = f'-> {calendar_event} Created'
@@ -71,16 +75,14 @@ def clear_calendar(calendar_service):
                 bar()
 
 
-def get_selenium_driver(headless=True):
-    options = Options()
-    # options.add_experimental_option("detach", True)
-    options.add_argument("--window-size=1920,1080")
-
-    options.add_argument("--headless") if headless else None
-    options.add_argument("--disable-infobars")
-    options.add_argument("--start-maximized")
-    driver = webdriver.Chrome(options=options)
-    return driver
+def scrape_events(driver, urls):
+    events = []
+    with alive_bar(len(urls), dual_line=True, title='Scraping events') as bar:
+        for url in urls:
+            bar.text = f'-> currently scraping {url}'
+            events.append(get_event_details(driver, url))
+            bar()
+    return events
 
 
 def main():
@@ -88,13 +90,13 @@ def main():
 
     creds = get_google_credentials()
     calendar_service = GoogleCalendar(credentials=creds, default_calendar=rva_music_calendar_id)
-
     clear_calendar(calendar_service)
     broad_berry_event_urls = get_broadberry_event_urls(driver)
     the_national_event_urls = get_national_event_urls()
-    event_urls = broad_berry_event_urls + the_national_event_urls
+    the_camel_event_urls = get_camel_event_urls(driver)
+    event_urls = broad_berry_event_urls + the_national_event_urls + the_camel_event_urls
 
-    events = [*map(lambda event_url: get_event_details(driver, event_url), alive_it(event_urls, title="Scraping events"))]
+    events = scrape_events(driver, event_urls)
     print(f"{len(events)} events found")
     events = [event for event in events if event is not None]  # If we get errors in scraping we return None, this strips those out
     print(f"{len(events)} events were valid")
@@ -103,7 +105,7 @@ def main():
 
     add_calendar_events(calendar_service, events)
 
-    print(f"All of the events have been created")
+    print(f"All of the {len(events)} events have been created")
 
 
 if __name__ == '__main__':
