@@ -9,6 +9,7 @@ from gcsa.google_calendar import GoogleCalendar
 from google.oauth2.service_account import Credentials
 
 from data.Event import Event
+from scrapers import getTightScraper
 from scrapers.broadberryScraper import get_broadberry_event_urls
 from scrapers.etixScraper import etix_event_details_scraper
 from scrapers.theCamelScraper import get_camel_event_urls, the_camel_details_scraper
@@ -27,6 +28,8 @@ def get_event_details(driver, event_url):
         scraped_event = the_national_details_scraper(driver, event_url)
     elif "thecamel" in event_url:
         scraped_event = the_camel_details_scraper(driver, event_url)
+    elif "dice.fm" in event_url:
+        scraped_event = getTightScraper.get_event_details(driver, event_url)
     else:
         print(f"ticketProvider not supported yet {event_url}")
     return scraped_event
@@ -63,7 +66,7 @@ def get_google_credentials():
 
 
 def clear_calendar(calendar_service):
-    events = calendar_service.get_events(time_min=datetime.datetime.now())
+    events = calendar_service.get_events(time_min=datetime.datetime.now() + datetime.timedelta(days=1))
     with alive_bar(dual_line=True, title='Trying to delete upcoming Google Events') as bar:
         for event in events:
             if event.creator.email == "calendar-bot@rva-music-calendar.iam.gserviceaccount.com":
@@ -94,7 +97,9 @@ def main():
     broad_berry_event_urls = get_broadberry_event_urls(driver)
     the_national_event_urls = get_national_event_urls()
     the_camel_event_urls = get_camel_event_urls(driver)
-    event_urls = broad_berry_event_urls + the_national_event_urls + the_camel_event_urls
+    get_tight_lounge_event_urls = getTightScraper.get_event_urls(driver)
+
+    event_urls = broad_berry_event_urls + the_national_event_urls + the_camel_event_urls + get_tight_lounge_event_urls
 
     events = scrape_events(driver, event_urls)
     print(f"{len(events)} events found")
