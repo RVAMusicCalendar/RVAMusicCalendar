@@ -36,7 +36,7 @@ def get_event_details(driver, event_url):
 
 
 def add_calendar_events(calendar_service, events):
-    with alive_bar(total=len(events), dual_line=True, title='Creating Google Events', ctrl_c=False) as bar:
+    with alive_bar(total=len(events), dual_line=True, title='Creating Google Events', ctrl_c=False, force_tty=True) as bar:
         for event in events:
             attachment = GCalAttachment(file_url=event.image_url)
             calendar_event = calendar_service.add_event(event=GCalEvent(
@@ -67,7 +67,7 @@ def get_google_credentials():
 
 def clear_calendar(calendar_service):
     events = calendar_service.get_events(time_min=datetime.datetime.now() + datetime.timedelta(days=1))
-    with alive_bar(dual_line=True, title='Trying to delete upcoming Google Events') as bar:
+    with alive_bar(dual_line=True, title='Trying to delete upcoming Google Events', force_tty=True) as bar:
         for event in events:
             if event.creator.email == "calendar-bot@rva-music-calendar.iam.gserviceaccount.com":
                 bar.text = f'-> Deleting {event.id} {event.summary}'
@@ -80,7 +80,7 @@ def clear_calendar(calendar_service):
 
 def scrape_events(driver, urls):
     events = []
-    with alive_bar(len(urls), dual_line=True, title='Scraping events') as bar:
+    with alive_bar(len(urls), dual_line=True, title='Scraping events', force_tty=True) as bar:
         for url in urls:
             bar.text = f'-> currently scraping {url}'
             events.append(get_event_details(driver, url))
@@ -89,9 +89,11 @@ def scrape_events(driver, urls):
 
 
 def main():
+    print("Starting...")
     driver = get_selenium_driver()
-
+    print("Chrome Driver acquired")
     creds = get_google_credentials()
+    print("Creds worked")
     calendar_service = GoogleCalendar(credentials=creds, default_calendar=rva_music_calendar_id)
     clear_calendar(calendar_service)
     broad_berry_event_urls = get_broadberry_event_urls(driver)
