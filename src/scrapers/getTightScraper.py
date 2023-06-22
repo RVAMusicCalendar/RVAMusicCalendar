@@ -15,14 +15,26 @@ getTightEventsURL = "https://www.gettightrva.com/events"
 getTightVenueInfo = VenueInfo(venue_name="Get Tight Lounge", street_address="1104 W Main St", city="Richmond", state="Virginia", postal_code=23220)
 
 
+def handle_popup(driver):
+    popups = driver.find_elements(By.CLASS_NAME, "sqs-slide-layer")
+    pprint(popups)
+    if len(popups):
+        driver.find_element(By.CLASS_NAME, "sqs-popup-overlay-close").click()
+
+
 def get_event_urls(driver):
-    driver.get(getTightEventsURL)
-    time.sleep(4)
-    driver.find_element(By.CLASS_NAME, "dice_load-more").click()
-    time.sleep(4)
-    events = driver.find_elements(By.CLASS_NAME, "dice_event-title")
-    event_urls = [*map(lambda event: event.get_attribute("href"), events)]
-    return event_urls
+    try:
+        driver.get(getTightEventsURL)
+        time.sleep(5)
+        handle_popup(driver)
+        driver.find_element(By.CLASS_NAME, "dice_load-more").click()
+        time.sleep(5)
+        events = driver.find_elements(By.CLASS_NAME, "dice_event-title")
+        event_urls = [*map(lambda event: event.get_attribute("href"), events)]
+        return event_urls
+    except:
+        print("Problem occured while scraping The Get Tight Lounge event urls")
+        return []
 
 
 # noinspection PyTypeChecker

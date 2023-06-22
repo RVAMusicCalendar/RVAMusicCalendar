@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<style>
+    html, body {
+     min-width: 1080px;
+     min-height: 1080px;
+     max-width: 1080px;
+     max-height: 1080px;
+     display:flex;
+     flex-flow: column wrap;
+    }
+
+    #headerTitle {
+        margin-bottom:0px;
+        font-size:3rem;
+    }
+
+    #date {
+        margin-top:10px;
+    }
+
+    .flex-container {
+        display: flex;
+        flex-flow: column;
+        justify-content: center;
+        list-style:none;
+        align-items: center;
+    }
+    .eventBlock {
+        display:flex;
+        flex-flow:column;
+        align-items:center;
+        margin-top: 3rem;
+    }
+    .eventLine {
+        font-size: 2rem;
+    }
+    .eventLocation {
+        font-size: 1rem;
+    }
+    main {
+    display:flex;
+    justify-content: center;
+    }
+</style>
+</head>
+<body>
+    <header class="flex-container">
+        <h1 id="headerTitle">RVA Music Calendar</h1>
+        <h2 id="date">{{ date.strftime("%m-%d-%Y") }}</h2>
+    </header>
+    <main>
+        <ul class="flex-container">
+        {% for event in events %}
+            <li class="eventBlock">
+                <span class="eventLine">
+                    <span class="eventName">{{ event.summary }}</span>
+                     -
+                    <span class="doorTime">{{ event.start.strftime("%-I:%M %p") }}</span>
+                </span>
+                <span class="eventLocation">{{ event.location }}</span>
+            </li>
+        {% endfor %}
+        </ul>
+    </main>
+</body>
+</html>

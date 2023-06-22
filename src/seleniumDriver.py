@@ -15,3 +15,17 @@ def get_selenium_driver(headless=True, detach=False):
     options.add_argument("--start-maximized")
     driver = webdriver.Chrome(options=options)
     return driver
+
+def get_selenium_screenshot_driver(headless=True, detach=False):
+    options = Options()
+    options.add_experimental_option("detach", True) if detach else None
+    options.add_argument("--window-size=1080,1080")
+    options.add_argument("--headless") if headless else None
+    options.add_argument("--disable-infobars")
+    options.add_argument('--disable-gpu')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--hide-scrollbars')
+    options.add_argument("--disable-dev-shm-usage")  # otherwise it uses memory and we would need to add more shared mem.
+    options.add_argument("--start-maximized")
+    driver = webdriver.Chrome(options=options)
+    return driver

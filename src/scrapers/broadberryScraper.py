@@ -14,8 +14,12 @@ def progressed_wait(wait_time, title=""):
 
 
 def get_broadberry_event_urls(driver):
-    driver.get(broadBerryURL)
-    progressed_wait(10, title="Giving the Broadberry website time to appear")
-    events = driver.find_elements(By.LINK_TEXT, "BUY TICKETS")
-    event_urls = [*map(lambda event: event.get_attribute("href"), events)]
-    return event_urls
+    try:
+        driver.get(broadBerryURL)
+        progressed_wait(10, title="Giving the Broadberry website time to appear")
+        events = driver.find_elements(By.LINK_TEXT, "BUY TICKETS")
+        event_urls = [*map(lambda event: event.get_attribute("href"), events)]
+        return event_urls
+    except:
+        print("Problem occured while scraping The Broadberry event urls")
+        return []

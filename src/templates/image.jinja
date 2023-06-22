@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        html, body {
+            width: 1080px;
+            height: 1080px;
+            margin: 0;
+            display: -webkit-box; /* wkhtmltopdf uses this one */
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-direction: column; /* wkhtmltopdf uses this one */
+            flex-flow: column wrap;
+            background: linear-gradient(-45deg, #e73c7e, #23a8d7, #b623d5);
+            background-size: 400% 400%;
+        }
+
+        main {
+            display: -webkit-box; /* wkhtmltopdf uses this one */
+            display: -webkit-flex;
+            display: flex;
+            -webkit-box-pack: center; /* wkhtmltopdf uses this one */
+            -webkit-justify-content: center;
+            justify-content: center;
+        }
+
+        header {
+            align-items: center;
+        }
+
+        #headerTitle {
+            margin-bottom: 0;
+            font-size: 3rem;
+        }
+
+        .flex-container {
+            display: -webkit-box; /* wkhtmltopdf uses this one */
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-direction: column; /* wkhtmltopdf uses this one */
+            flex-flow: column;
+            -webkit-box-pack: center; /* wkhtmltopdf uses this one */
+            -webkit-justify-content: center;
+            justify-content: center;
+            list-style: none;
+            padding: 0;
+        }
+
+        .eventBlock {
+            display: -webkit-box; /* wkhtmltopdf uses this one */
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-direction: column; /* wkhtmltopdf uses this one */
+            flex-flow: column;
+            align-items: center;
+            margin-top: 3rem;
+
+        }
+
+        .eventLine {
+            font-size: 2rem;
+            text-align: center;
+        }
+
+        .eventLocation {
+            font-size: 1rem;
+        }
+
+    </style>
+</head>
+<body>
+<header class="flex-container">
+    <h1 id="headerTitle">RVA Music Calendar</h1>
+    <h2 id="date">{{ date.strftime("%m-%d-%Y") }}</h2>
+</header>
+<main>
+    <ul class="flex-container">
+        {% for event in events %}
+            <li class="eventBlock">
+                <span class="eventLine">
+                    <span class="eventName">{{ event.summary }}</span>
+                     -
+                    <span class="doorTime">{{ event.start.strftime("%-I:%M %p") }}</span>
+                </span>
+                <span class="eventLocation">{{ event.location }}</span>
+            </li>
+        {% endfor %}
+    </ul>
+</main>
+</body>
+</html>

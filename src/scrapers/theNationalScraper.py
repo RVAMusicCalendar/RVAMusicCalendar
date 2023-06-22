@@ -1,20 +1,27 @@
 import datetime as dt
+from pprint import pprint
 
 import feedparser
+
 from dateutil.parser import parse
 from selenium.common import NoSuchElementException
 from selenium.webdriver.common.by import By
 
 from data.Event import Event
 from data.VenueInfo import VenueInfo
+from seleniumDriver import get_selenium_driver
 
 theNationalRSSFeedURL = "https://www.thenationalva.com/events/rss"
 theNationalVenueInfo = VenueInfo(venue_name="The National", street_address="708 E. Broad Street", city="Richmond", state="Virginia", postal_code=23219)
 
 
 def get_national_event_urls():
-    event_feed = feedparser.parse(theNationalRSSFeedURL)
-    return [entry.link for entry in event_feed.entries]
+    try:
+        event_feed = feedparser.parse(theNationalRSSFeedURL)
+        return [entry.link for entry in event_feed.entries]
+    except:
+        print("Problem occured while scraping The National event urls")
+        return []
 
 
 def the_national_details_scraper(driver, event_url):
@@ -38,3 +45,17 @@ def the_national_details_scraper(driver, event_url):
         print(f"Problem extracting for {event_url}, {e}")
     except:
         print(f"Problem extracting for {event_url}")
+
+
+if __name__ == '__main__':
+    # selenium_driver = get_selenium_driver(False, True)
+    selenium_driver = get_selenium_driver(False)
+    # urls = get_event_urls(selenium_driver)
+    # print(len(urls))
+    # print(urls)
+
+    test_event_url = "https://link.dice.fm/i22ef77bf801?pid=8984aee2"
+
+    selenium_driver.get(test_event_url)
+    test_event = the_national_details_scraper(selenium_driver, test_event_url)
+    pprint(test_event)

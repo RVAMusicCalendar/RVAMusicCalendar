@@ -14,11 +14,15 @@ theCamelVenueInfo = VenueInfo(venue_name="The Camel", street_address="1621 W. BR
 
 
 def get_camel_event_urls(driver):
-    driver.get(theCamelEventsURL)
-    # progressed_wait(10, title="Giving the Camel website time to appear")
-    events = driver.find_elements(By.LINK_TEXT, "More Info")
-    event_urls = [*map(lambda event: event.get_attribute("href"), events)]
-    return event_urls
+    try:
+        driver.get(theCamelEventsURL)
+        # progressed_wait(10, title="Giving the Camel website time to appear")
+        events = driver.find_elements(By.LINK_TEXT, "More Info")
+        event_urls = [*map(lambda event: event.get_attribute("href"), events)]
+        return event_urls
+    except:
+        print("Problem occured while scraping The Camel event urls")
+        return []
 
 
 def the_camel_details_scraper(driver, event_url):

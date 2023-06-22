@@ -16,7 +16,8 @@ RUN apt-get update && apt-get install -y \
     libappindicator1  \
     libnss3 \
     lsb-release \
-    xdg-utils
+    xdg-utils \
+    wkhtmltopdf # needed for imgkit to generate images
 
 #download and install chrome
 RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
@@ -27,16 +28,16 @@ RUN rm -rf /var/lib/aptlists
 RUN pip3 install --upgrade pip
 
 RUN mkdir /app
-COPY ./src /app
+WORKDIR /app
 COPY pyproject.toml /app
 
-WORKDIR /app
 ENV PYTHONPATH=${PYTHONPATH}:${PWD}
 
 RUN pip3 install poetry
 RUN poetry config virtualenvs.create false
 RUN poetry install --no-dev
-RUN pip3 install chromedriver-binary-auto
+
+COPY ./src /app
 
 COPY service.json /app
 

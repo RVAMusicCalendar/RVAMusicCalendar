@@ -1,6 +1,7 @@
 import datetime
 import datetime as dt
 import os
+from collections import defaultdict
 
 from alive_progress import alive_bar
 from gcsa.attachment import Attachment as GCalAttachment
@@ -14,7 +15,8 @@ from scrapers.broadberryScraper import get_broadberry_event_urls
 from scrapers.etixScraper import etix_event_details_scraper
 from scrapers.theCamelScraper import get_camel_event_urls, the_camel_details_scraper
 from scrapers.theNationalScraper import get_national_event_urls, the_national_details_scraper
-from seleniumDriver import get_selenium_driver
+from seleniumDriver import get_selenium_driver, get_selenium_screenshot_driver
+from imageGenerator import generate_image_for_day
 
 rva_music_calendar_id = "810rm4o2829cdhurresns7a4cc@group.calendar.google.com"
 
@@ -66,7 +68,7 @@ def get_google_credentials():
 
 
 def clear_calendar(calendar_service):
-    events = calendar_service.get_events(time_min=datetime.datetime.now() + datetime.timedelta(days=1))
+    events = calendar_service.get_events(time_min=datetime.datetime.now())
     with alive_bar(dual_line=True, title='Trying to delete upcoming Google Events', force_tty=True) as bar:
         for event in events:
             if event.creator.email == "calendar-bot@rva-music-calendar.iam.gserviceaccount.com":
@@ -88,19 +90,16 @@ def scrape_events(driver, urls):
     return events
 
 
-def main():
-    print("Starting...")
-    driver = get_selenium_driver()
-    print("Chrome Driver acquired")
+def scrape():
+    driver = get_selenium_driver(False, True)
+    # driver = get_selenium_driver()
     creds = get_google_credentials()
-    print("Creds worked")
     calendar_service = GoogleCalendar(credentials=creds, default_calendar=rva_music_calendar_id)
     clear_calendar(calendar_service)
     broad_berry_event_urls = get_broadberry_event_urls(driver)
     the_national_event_urls = get_national_event_urls()
     the_camel_event_urls = get_camel_event_urls(driver)
     get_tight_lounge_event_urls = getTightScraper.get_event_urls(driver)
-
     event_urls = broad_berry_event_urls + the_national_event_urls + the_camel_event_urls + get_tight_lounge_event_urls
 
     events = scrape_events(driver, event_urls)
@@ -113,6 +112,37 @@ def main():
     add_calendar_events(calendar_service, events)
 
     print(f"All of the {len(events)} events have been created")
+
+
+def group_all_events_by_day():
+    creds = get_google_credentials()
+    calendar_service = GoogleCalendar(credentials=creds, default_calendar=rva_music_calendar_id)
+    calendar_events = calendar_service.get_events()
+    grouped = defaultdict(list)
+    for event in calendar_events:
+        event_date = event.start.strftime("%m/%d/%Y")
+        # event = event.copy()
+        grouped[event_date].append(event)
+        print(event)
+
+    print(grouped)
+    print(grouped["04/25/2023"])
+
+
+def get_events_for_day(date: datetime.date):
+    creds = get_google_credentials()
+    calendar_service = GoogleCalendar(credentials=creds, default_calendar=rva_music_calendar_id)
+    time_min = datetime.datetime.combine(date, datetime.time.min)
+    time_max = datetime.datetime.combine(date, datetime.time.max)
+    events_on_date = [*calendar_service.get_events(time_min, time_max)]
+    return events_on_date
+
+
+def main():
+    scrape()
+    tomorrow = datetime.date.today() + datetime.timedelta(1)
+    events_on_date = get_events_for_day(tomorrow)
+    generate_image_for_day(tomorrow, events_on_date)
 
 
 if __name__ == '__main__':
