@@ -13,7 +13,7 @@ OUTPUT_FOLDER = "generatedImages/"
 
 env = Environment(
     # loader=PackageLoader("main"),
-    loader=FileSystemLoader("src/templates/"),
+    loader=FileSystemLoader(["src/templates/", "/app/templates/"]),
     autoescape=select_autoescape()
 )
 

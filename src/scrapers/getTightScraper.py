@@ -17,7 +17,6 @@ getTightVenueInfo = VenueInfo(venue_name="Get Tight Lounge", street_address="110
 
 def handle_popup(driver):
     popups = driver.find_elements(By.CLASS_NAME, "sqs-slide-layer")
-    pprint(popups)
     if len(popups):
         driver.find_element(By.CLASS_NAME, "sqs-popup-overlay-close").click()
 

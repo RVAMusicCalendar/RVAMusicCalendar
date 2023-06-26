@@ -13,9 +13,9 @@ feedparser = "6.0.10"
 gcsa = "2.0.1"
 alive-progress = "^3.0.1"
 jinja2 = "^3.1.2"
-imgkit = "^1.2.3"
-chromedriver-binary-auto = "^0.2.5"
-html2image = "^2.0.3"
+#imgkit = "^1.2.3"
+#chromedriver-binary-auto = "^0.2.5"
+#html2image = "^2.0.3"
 
 [build-system]
 requires = ["poetry-core"]
