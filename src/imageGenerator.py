@@ -1,18 +1,15 @@
 import os
-import time
 from datetime import datetime
 
 from gcsa.event import Event
 from jinja2 import Environment, select_autoescape, FileSystemLoader
-from selenium.webdriver.common.by import By
 
-from seleniumDriver import get_selenium_screenshot_driver
+from seleniumDriver import get_selenium_driver
 
 OUTPUT_FOLDER = "generatedImages/"
 
 
 env = Environment(
-    # loader=PackageLoader("main"),
     loader=FileSystemLoader(["src/templates/", "/app/templates/"]),
     autoescape=select_autoescape()
 )
@@ -40,7 +37,7 @@ def generate_image_for_day(date: datetime.date, events: list[Event]):
 
 
 def get_image_from_selenium(date: datetime.date):
-    driver = get_selenium_screenshot_driver()
+    driver = get_selenium_driver()
     cwd = os.getcwd()
     localHtmlPath = "file://{}/{}{}.html".format(cwd, OUTPUT_FOLDER, date.strftime("%m-%d-%Y"))
     print(localHtmlPath)
