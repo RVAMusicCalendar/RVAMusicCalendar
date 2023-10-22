@@ -17,6 +17,7 @@ from scrapers.theCamelScraper import get_camel_event_urls, the_camel_details_scr
 from scrapers.theNationalScraper import get_national_event_urls, the_national_details_scraper
 from seleniumDriver import get_selenium_driver, get_selenium_screenshot_driver
 from imageGenerator import generate_image_for_day
+from scrapers.getTightScraper import get__getTight_events
 
 rva_music_calendar_id = "810rm4o2829cdhurresns7a4cc@group.calendar.google.com"
 
@@ -82,7 +83,7 @@ def clear_calendar(calendar_service):
 
 def scrape_events(driver, urls):
     events = []
-    with alive_bar(len(urls), dual_line=True, title='Scraping events', force_tty=True) as bar:
+    with alive_bar(len(urls), dual_line=True, title='Scraping events by URL', force_tty=True) as bar:
         for url in urls:
             bar.text = f'-> currently scraping {url}'
             events.append(get_event_details(driver, url))
@@ -99,10 +100,13 @@ def scrape():
     broad_berry_event_urls = get_broadberry_event_urls(driver)
     the_national_event_urls = get_national_event_urls()
     the_camel_event_urls = get_camel_event_urls(driver)
-    get_tight_lounge_event_urls = getTightScraper.get_event_urls(driver)
-    event_urls = broad_berry_event_urls + the_national_event_urls + the_camel_event_urls + get_tight_lounge_event_urls
+    event_urls = broad_berry_event_urls + the_national_event_urls + the_camel_event_urls
 
     events = scrape_events(driver, event_urls)
+    get_tight_events = get__getTight_events(driver)
+
+    events += get_tight_events
+
     print(f"{len(events)} events found")
     events = [event for event in events if event is not None]  # If we get errors in scraping we return None, this strips those out
     print(f"{len(events)} events were valid")
@@ -140,9 +144,9 @@ def get_events_for_day(date: datetime.date):
 
 def main():
     scrape()
-    tomorrow = datetime.date.today() + datetime.timedelta(1)
-    events_on_date = get_events_for_day(tomorrow)
-    generate_image_for_day(tomorrow, events_on_date)
+    # tomorrow = datetime.date.today() + datetime.timedelta(1)
+    # events_on_date = get_events_for_day(tomorrow)
+    # generate_image_for_day(tomorrow, events_on_date)
 
 
 if __name__ == '__main__':

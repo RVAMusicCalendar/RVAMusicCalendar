@@ -2,8 +2,7 @@ import os
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-
-SELENIUM_HOST = "http://selenium:4444/wd/hub" if os.environ['ENV'] == "DEV" else "http://localhost:4444/wd/hub"
+SELENIUM_HOST = os.environ.get('SELENIUM_HOST', 'http://localhost:4444/wd/hub')
 
 
 def get_selenium_driver(headless=True, detach=False):
