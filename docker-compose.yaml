@@ -2,12 +2,14 @@ services:
   rva-music-scrapers:
     build: .
     environment:
-      - ENV=DEV
+      - SELENIUM_HOST=http://selenium:4444/wd/hub
     volumes:
       - ./service.json:/app/service.json
+#      - /home/containers/music-calendar/generatedImages:/app/generatedImages/
     depends_on:
       selenium:
         condition: service_healthy
+
   selenium:
     image: "selenium/standalone-chrome"
     ports:
