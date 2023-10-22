@@ -91,8 +91,8 @@ if __name__ == '__main__':
     # print(len(urls))
     # print(urls)
 
-    test_event_url = "https://link.dice.fm/i22ef77bf801?pid=8984aee2"
-
+    # test_event_url = "https://link.dice.fm/i22ef77bf801?pid=8984aee2"
+    test_event_url = "https://link.dice.fm/c7d24dc920e0?pid=8984aee2"
     selenium_driver.get(test_event_url)
     test_event = get_event_details(selenium_driver, test_event_url)
     pprint(test_event)

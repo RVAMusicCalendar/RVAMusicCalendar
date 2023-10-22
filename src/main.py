@@ -94,6 +94,7 @@ def scrape_events(driver, urls):
 def scrape():
     driver = get_selenium_driver(False, True)
     # driver = get_selenium_driver()
+
     creds = get_google_credentials()
     calendar_service = GoogleCalendar(credentials=creds, default_calendar=rva_music_calendar_id)
     clear_calendar(calendar_service)
