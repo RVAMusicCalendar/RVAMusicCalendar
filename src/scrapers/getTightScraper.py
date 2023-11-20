@@ -55,16 +55,15 @@ def get_event_details(driver, event_url):
         print(f"Problem extracting for {event_url}")
 
 
-def get__getTight_events(driver):
+def get_gettight_events(driver):
     try:
         driver.get(getTightEventsURL)
         time.sleep(5)
         handle_popup(driver)
-        driver.find_element(By.CLASS_NAME, "dice_load-more").click()
         time.sleep(5)
+        # events_container = driver.find_elements(By.CLASS_NAME, "dice_events")
         event_infos = driver.find_elements(By.XPATH, "//article")
         events = []
-
         with alive_bar(len(event_infos), dual_line=True, title='Scraping getTight events', force_tty=True) as bar:
             for event_info in event_infos:
                 response = json.loads(event_info.find_element(By.TAG_NAME, "script").get_attribute('innerHTML'))[0]
@@ -75,7 +74,9 @@ def get__getTight_events(driver):
                 event_door_open_time = parse(response['doorTime']).time()
                 event_image_url = event_info.find_element(By.TAG_NAME, "img").get_attribute("src")
                 event_description = response['description']
-                event = Event(getTightVenueInfo, event_date_time, event_door_open_time, event_name, event_image_url, event_description, event_ticket_url, color_id="4")
+                event_price = response["offers"][0]["price"]
+                #not setting source_url... should we?
+                event = Event(getTightVenueInfo, event_date_time, event_door_open_time, event_name, event_image_url, event_description, event_ticket_url, color_id="4", price=event_price)
                 events.append(event)
                 bar()
         return events

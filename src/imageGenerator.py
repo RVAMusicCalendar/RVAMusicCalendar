@@ -7,13 +7,10 @@ from jinja2 import Environment, select_autoescape, FileSystemLoader
 from seleniumDriver import get_selenium_driver
 
 OUTPUT_FOLDER = "generatedImages/"
-
-
 env = Environment(
     loader=FileSystemLoader(["src/templates/", "/app/templates/"]),
     autoescape=select_autoescape()
 )
-
 template = env.get_template("image.jinja")
 
 
@@ -43,4 +40,4 @@ def get_image_from_selenium(date: datetime.date):
     print(localHtmlPath)
     # time.sleep(10)
     driver.get(localHtmlPath)
-    driver.save_screenshot(OUTPUT_FOLDER+date.strftime("%m-%d-%Y")+".png")
+    driver.save_screenshot(OUTPUT_FOLDER + date.strftime("%m-%d-%Y") + ".png")

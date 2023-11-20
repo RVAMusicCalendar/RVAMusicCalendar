@@ -14,7 +14,7 @@ class Event:
         self.event_datetime = event_datetime
         self.venue_info = venue_info
         self.url = event_url
-        self.source_url = source_url
+        self.source_url = source_url  # url we scraped from
         self.price = price
         self.color_id = color_id
 

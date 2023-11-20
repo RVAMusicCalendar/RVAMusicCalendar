@@ -39,7 +39,7 @@ def the_national_details_scraper(driver, event_url):
             event_description = event_detail_container.find_element(By.CLASS_NAME, "bio").find_element(By.CLASS_NAME, "collapse-wrapper").text
         except:
             print(f"no bio available for this event {event_name}, {event_url}")
-        event = Event(theNationalVenueInfo, event_date_time, event_door_open_time, event_name, event_image_url, event_description, event_url, color_id="2")
+        event = Event(theNationalVenueInfo, event_date_time, event_door_open_time, event_name, event_image_url, event_description, event_url, source_url=event_url, color_id="2")
         return event
     except NoSuchElementException as e:
         print(f"Problem extracting for {event_url}, {e}")

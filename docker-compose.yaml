@@ -6,6 +6,8 @@ services:
     volumes:
       - ./service.json:/app/service.json
 #      - /home/containers/music-calendar/generatedImages:/app/generatedImages/
+    env_file:
+      - .env
     depends_on:
       selenium:
         condition: service_healthy
