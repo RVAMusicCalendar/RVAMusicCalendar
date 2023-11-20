@@ -1,8 +1,8 @@
 from dateutil.parser import parse
 from selenium.webdriver.common.by import By
 
-from data.Event import Event
-from data.VenueInfo import VenueInfo
+from data.model.Event import Event
+from data.model.VenueInfo import VenueInfo
 
 
 def etix_event_details_scraper(driver, event_url):

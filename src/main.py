@@ -11,32 +11,11 @@ from google.oauth2.service_account import Credentials
 from supabase import create_client, Client
 from supabase.lib.client_options import ClientOptions
 
-from data.Event import Event
-from scrapers import getTightScraper
-from scrapers.broadberryScraper import get_broadberry_event_urls
-from scrapers.etixScraper import etix_event_details_scraper
-from scrapers.getTightScraper import get_gettight_events
-from scrapers.theCamelScraper import get_camel_event_urls, the_camel_details_scraper
-from scrapers.theNationalScraper import get_national_event_urls, the_national_details_scraper
+from data.db.dbService import insert_dupe_event_db, event_already_exists, get_or_insert_venue, insert_event_db
+from scraper import scrape
 from seleniumDriver import get_selenium_driver
 
 rva_music_calendar_id = "810rm4o2829cdhurresns7a4cc@group.calendar.google.com"
-
-
-def get_event_details(driver, event_url):
-    driver.get(event_url)
-    scraped_event: Event | None = None
-    if "etix" in event_url:
-        scraped_event = etix_event_details_scraper(driver, event_url)
-    elif "thenationalva" in event_url:
-        scraped_event = the_national_details_scraper(driver, event_url)
-    elif "thecamel" in event_url:
-        scraped_event = the_camel_details_scraper(driver, event_url)
-    elif "dice.fm" in event_url:
-        scraped_event = getTightScraper.get_event_details(driver, event_url)
-    else:
-        print(f"ticketProvider not supported yet {event_url}")
-    return scraped_event
 
 
 def add_gcal_event(calendar_service, event):
@@ -87,98 +66,32 @@ def clear_calendar(calendar_service):
                 bar()
 
 
-def scrape_events(driver, urls):
-    events = []
-    with alive_bar(len(urls), dual_line=True, title='Scraping events by URL', force_tty=True) as bar:
-        for url in urls:
-            bar.text = f'-> currently scraping {url}'
-            events.append(get_event_details(driver, url))
-            bar()
-    return events
-
-
-def get_or_insert_venue(supabase, venue_info):
-    data, count = supabase.table('venues').select("id", "street_address").eq('street_address', venue_info.street_address).execute()
-    data = data[1]
-    if data and len(data) > 0:  # Already in DB
-        print("Already have this venue in the db", data[0])
-        return data[0]["id"]
-    else:  # Add it
-        print("Adding venue to the db", venue_info)
-        res = supabase.table('venues').insert({
-            "name": venue_info.venue_name,
-            "street_address": venue_info.street_address,
-            "state": venue_info.state,
-            "postal_code": venue_info.postal_code,
-        }).execute()
-        data = res.data
-        return data[0]['id']
-
-
-def insert_event_db(supabase, event, venue_id, calendar_event_id):
-    data, count = supabase.table('events').insert({
-        "event_name": event.event_name,
-        "description": event.description,
-        "event_datetime": f"{event.event_datetime}",
-        "door_time": f"{event.door_time}",
-        "price": event.price,
-        "url": event.url,
-        "image_url": event.image_url,
-        "source_url": event.source_url,
-        "googleCalendarEventId": calendar_event_id,
-        "venue": venue_id
-    }).execute()
-    return data[1][0]
-
-
 def add_event_db(supabase, event, venue_db_id, calendar_id):
     try:
         created = insert_event_db(supabase, event, venue_db_id, calendar_id)
         print(f"Added {created} to the db")
         return created
-    except:
+    except Exception as e:
+        print("error", e)
         print("Error with the db and venue ", event)
         return None
 
 
-# RETURNS False if event doesn't exist
-# RETURNS the id of the event if it does.
-def event_already_exists(supabase, event): #TODO: could offload this to a trigger on the db
-    # I wonder how bad using an ilike on a possibly large field like description is.
-    data, count = supabase.table('events') \
-        .select("*") \
-        .ilike('event_name', event.event_name) \
-        .ilike('description', event.description) \
-        .execute()
-    # TODO: How can we add in the within same time window check
-    data = data[1]
-    if data and len(data) > 0:  # Already in DB
-        print("Already have this venue in the db", data[0])
-        return data[0]["id"]  # I mean I didn't mean for this to return anything more than true or false... but not a bad feature?
-    return False
-
-
-def insert_dupe_event_db(supabase, event, preexisting_event_id, venue_db_id):
-    data, count = supabase.table('dupes').insert({
-        "event_name": event.event_name,
-        "description": event.description,
-        "event_datetime": f"{event.event_datetime}",
-        "door_time": f"{event.door_time}",
-        "price": event.price,
-        "url": event.url,
-        "image_url": event.image_url,
-        "source_url": event.source_url,
-        "venue": venue_db_id,
-        "event_id": preexisting_event_id,
-    }).execute()
-    return data[1][0]
-
-
 def add_events(calendar_service, supabase, events):
     for event in events:
-        venue_db_id = get_or_insert_venue(supabase, event.venue_info)
-        print(f"venue {venue_db_id}")
-        preexisting_event = event_already_exists(supabase, event)
+        venue_db_id = None
+        try:
+            venue_db_id = get_or_insert_venue(supabase, event.venue_info)
+            print(f"venue {venue_db_id}")
+        except Exception as e:
+            print(e)
+            print("Problem getting venue for", event)
+        preexisting_event = None
+        try:
+            preexisting_event = event_already_exists(supabase, event)
+        except Exception as e:
+            print(e)
+            print("Problem checking if event already exists", event)
         if not preexisting_event:
             calendar_event = add_gcal_event(calendar_service, event)
             event = add_event_db(supabase, event, venue_db_id, calendar_event.event_id)
@@ -187,23 +100,6 @@ def add_events(calendar_service, supabase, events):
             # lol could check if the pre-existing event isn't on the calendar and add it if it is would keep the db and calendar more in sync
             # Add dupes to a separate table to check later
             insert_dupe_event_db(supabase, event, preexisting_event, venue_db_id)
-
-
-def scrape(driver):
-    events = []
-    broad_berry_event_urls = get_broadberry_event_urls(driver)
-    the_national_event_urls = get_national_event_urls()
-    the_camel_event_urls = get_camel_event_urls(driver)
-    event_urls = broad_berry_event_urls + the_national_event_urls + the_camel_event_urls
-
-    # TODO: Add a check to the db and don't run it if source_url
-    events += scrape_events(driver, event_urls)
-    get_tight_events = get_gettight_events(driver)
-    if len(get_tight_events) > 0:
-        print("problem scraping Get Tight Lounge Events")  # TODO: maybe alert or something
-        events += get_tight_events
-
-    return events
 
 
 def group_all_events_by_day():

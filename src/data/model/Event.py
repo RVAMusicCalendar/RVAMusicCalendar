@@ -1,6 +1,4 @@
-import string
-
-from data import VenueInfo
+from data.model import VenueInfo
 from datetime import datetime, time
 
 

@@ -7,8 +7,8 @@ from dateutil.parser import parse
 from selenium.common import NoSuchElementException
 from selenium.webdriver.common.by import By
 
-from data.Event import Event
-from data.VenueInfo import VenueInfo
+from data.model.Event import Event
+from data.model.VenueInfo import VenueInfo
 from seleniumDriver import get_selenium_driver
 
 theNationalRSSFeedURL = "https://www.thenationalva.com/events/rss"
