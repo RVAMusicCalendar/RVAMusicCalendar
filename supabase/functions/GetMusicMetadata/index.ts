@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.3.0/mod.ts";
 import { CreateCompletionRequest } from "https://esm.sh/openai@3.1.0";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
 const schema = {
   type: "object",
   properties: {
@@ -17,7 +18,6 @@ const schema = {
 
 serve(async (req) => {
   const json = await req.json();
-  console.log(json);
   const { event_name, description } = json.record;
   const messages: { role: string; content: string }[] = [
     {
@@ -39,7 +39,7 @@ serve(async (req) => {
     },
     {
       role: "system",
-      content: `Can you format the artists names as json?
+      content: `Can you format the artists names as json using the following format?
       {
         artists: [
           artistName: """Insert artist name here""",
@@ -51,11 +51,8 @@ serve(async (req) => {
   const completionConfig: CreateCompletionRequest = {
     model: "gpt-3.5-turbo",
     messages,
-    // response_format: { type: "json_object" },
-    // response_format={ "type": "json_object" },
     max_tokens: 256,
     temperature: 0,
-
     // stream: true,
   };
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
@@ -68,9 +65,7 @@ serve(async (req) => {
     body: JSON.stringify(completionConfig),
   });
   const aiJson = await aiResponse.json();
-  console.log(aiJson);
   const { artists } = JSON.parse(aiJson.choices[0].message.content);
-  console.log("artists", artists);
   const output = {
     eventName: event_name,
     artists,
