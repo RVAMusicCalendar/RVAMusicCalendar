@@ -1,24 +1,23 @@
 import "https://deno.land/x/xhr@0.3.0/mod.ts";
 import { CreateCompletionRequest } from "https://esm.sh/openai@3.1.0";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const schema = {
-  type: "object",
-  properties: {
-    artist_name: {
-      type: "string",
-      description: "Name of the artist",
-    },
-    event_name: {
-      type: "string",
-      description: "Name of the event",
-    },
-  },
-};
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
 serve(async (req) => {
+  const authHeader = req.headers.get("Authorization")!;
+  const supabaseClient = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+    {
+      global: {
+        headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+      },
+    }
+  );
   const json = await req.json();
-  const { event_name, description } = json.record;
+  const { id, event_name, description } = json.record;
   const messages: { role: string; content: string }[] = [
     {
       role: "system",
@@ -55,7 +54,6 @@ serve(async (req) => {
     temperature: 0,
     // stream: true,
   };
-  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
   const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -70,6 +68,25 @@ serve(async (req) => {
     eventName: event_name,
     artists,
   };
+  const { data, error } = await supabaseClient
+    .from("eventMetadata")
+    .insert({
+      event: id,
+      artists,
+    })
+    .select();
+  console.log("data", data);
+  console.log("errror", error);
+
+  const { data2, error2 } = await supabaseClient
+    .from("events")
+    .upsert({
+      id: id,
+      stage: "Complete",
+    })
+    .select();
+  console.log("data", data2);
+  console.log("errror", error2);
   return new Response(JSON.stringify(output), {
     headers: { "Content-Type": "application/json" },
   });
