@@ -12,7 +12,9 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_ANON_KEY") ?? "",
     {
       global: {
-        headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+        headers: {
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
       },
     }
   );
@@ -21,20 +23,24 @@ serve(async (req) => {
   const messages: { role: string; content: string }[] = [
     {
       role: "system",
-      content: "Here is the description of a music event",
-    },
-    {
-      role: "system",
       content: description,
     },
     {
       role: "system",
       content:
-        "I'm going to give you the name of an event at a music venue, can you tell me the name of the artists playing at the event?",
+        "I'm going to give you the name and a potential description of an event at a music venue. Can you tell me the name of the artists playing at the event?",
     },
     {
       role: "system",
-      content: `The event is  ${event_name}`,
+      content: `The event name is  ${event_name}`,
+    },
+    {
+      role: "system",
+      content: "Here is the description of a music event",
+    },
+    {
+      role: "system",
+      content: `Does that event seem to be cancelled?`,
     },
     {
       role: "system",
@@ -43,6 +49,7 @@ serve(async (req) => {
         artists: [
           artistName: """Insert artist name here""",
         ]
+        isEventCancelled: """Insert whether or not the event is cancelled as a boolean"""
       }`,
     },
   ];
@@ -63,30 +70,35 @@ serve(async (req) => {
     body: JSON.stringify(completionConfig),
   });
   const aiJson = await aiResponse.json();
-  const { artists } = JSON.parse(aiJson.choices[0].message.content);
+  const { artists, isEventCancelled } = JSON.parse(
+    aiJson.choices[0].message.content
+  );
   const output = {
     eventName: event_name,
     artists,
+    isEventCancelled,
   };
   const { data, error } = await supabaseClient
     .from("eventMetadata")
     .insert({
       event: id,
       artists,
+      isEventCancelled,
+      source: "OpenAIScrape",
     })
     .select();
   console.log("data", data);
   console.log("errror", error);
-
   const { data2, error2 } = await supabaseClient
     .from("events")
     .upsert({
-      id: id,
-      stage: "Complete",
+      id,
+      stage: "OpenAIScrapeComplete",
     })
     .select();
-  console.log("data", data2);
-  console.log("errror", error2);
+    console.log("data2", data2);
+    console.log("errror2", error2);
+  console.log(aiJson);
   return new Response(JSON.stringify(output), {
     headers: { "Content-Type": "application/json" },
   });
